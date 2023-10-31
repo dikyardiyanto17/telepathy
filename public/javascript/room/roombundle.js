@@ -15801,28 +15801,38 @@ const signalNewConsumerTransport = async ({ remoteProducerId, socket, parameter 
 	try {
 		if (parameter.consumingTransports.includes(remoteProducerId)) return
 		parameter.consumingTransports.push(remoteProducerId)
-		await socket.emit("create-webrtc-transport", { consumer: true, roomName: parameter.roomName }, ({ params }) => {
-			parameter.consumerTransport = parameter.device.createRecvTransport(params)
+		if (!parameter.consumerTransport) {
+			await socket.emit("create-webrtc-transport", { consumer: true, roomName: parameter.roomName }, ({ params }) => {
+				parameter.consumerTransport = parameter.device.createRecvTransport(params)
 
-			parameter.consumerTransport.on("connect", async ({ dtlsParameters }, callback, errback) => {
-				try {
-					await socket.emit("transport-recv-connect", { dtlsParameters, serverConsumerTransportId: params.id })
-					callback()
-				} catch (error) {
-					errback(error)
-				}
+				parameter.consumerTransport.on("connect", async ({ dtlsParameters }, callback, errback) => {
+					try {
+						await socket.emit("transport-recv-connect", { dtlsParameters, serverConsumerTransportId: params.id })
+						callback()
+					} catch (error) {
+						errback(error)
+					}
+				})
+				parameter.consumerTransport.on("connectionstatechange", async (e) => {
+					console.log("- Receiver Transport State : ", e)
+				})
+				connectRecvTransport({
+					parameter,
+					consumerTransport: parameter.consumerTransport,
+					socket,
+					remoteProducerId,
+					serverConsumerTransportId: params.id,
+				})
 			})
-			parameter.consumerTransport.on("connectionstatechange", async (e) => {
-				console.log("- Receiver Transport State : ", e)
-			})
+		} else {
 			connectRecvTransport({
 				parameter,
 				consumerTransport: parameter.consumerTransport,
 				socket,
 				remoteProducerId,
-				serverConsumerTransportId: params.id,
+				serverConsumerTransportId: parameter.consumerTransport.id,
 			})
-		})
+		}
 	} catch (error) {
 		console.log("- Error Signaling New Consumer Transport : ", error)
 	}
@@ -15830,7 +15840,6 @@ const signalNewConsumerTransport = async ({ remoteProducerId, socket, parameter 
 
 const connectRecvTransport = async ({ parameter, consumerTransport, socket, remoteProducerId, serverConsumerTransportId }) => {
 	try {
-		console.log(serverConsumerTransportId)
 		await socket.emit(
 			"consume",
 			{
@@ -16052,7 +16061,7 @@ socket.on("new-producer", ({ producerId, socketId }) => {
 
 socket.on("producer-closed", ({ remoteProducerId, socketId }) => {
 	const producerToClose = parameter.consumerTransports.find((transportData) => transportData.producerId === remoteProducerId)
-	producerToClose.consumerTransport.close()
+	// producerToClose.consumerTransport.close()
 	producerToClose.consumer.close()
 
 	let checkData = parameter.allUsers.find((data) => data.socketId === socketId)

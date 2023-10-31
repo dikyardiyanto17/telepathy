@@ -1,14 +1,15 @@
+// let ip = '127.0.0.1'
+// let ip = "192.168.206.123"
+// let ip = '192.168.205.229'
+// let ip = "192.168.18.68" // Laptop Jaringan 5G
+// let ip = "203.194.113.166" // VPS Mr. Indra IP
+let ip = "203.175.10.29" // My VPS
+// let ip = '192.168.3.135' // IP Kost
+
 const webRtcTransport_options = {
 	listenIps: [
 		{
-			// ip: '127.0.0.1',
-			// ip: '192.168.206.123',
-			// ip: '192.168.205.229',
-			ip: '192.168.18.68', // Laptop Jaringan 5G
-			// ip: "203.194.113.166", // VPS Mr. Indra IP
-			// ip: '203.175.10.29' // My VPS
-			// ip: '192.168.3.135' // IP Kost
-			// announcedIp: "88.12.10.41"
+			ip,
 		},
 	],
 	enableUdp: true,
@@ -17,21 +18,34 @@ const webRtcTransport_options = {
 }
 
 const mediaCodecs = [
-    {
-        kind: 'audio',
-        mimeType: 'audio/opus',
-        clockRate: 48000,
-        channels: 2,
-    },
-    {
-        kind: 'video',
-        mimeType: 'video/VP8',
-        clockRate: 90000,
-        parameters: {
-            'x-google-start-bitrate': 1000,
-        },
-    },
+	{
+		kind: "audio",
+		mimeType: "audio/opus",
+		clockRate: 48000,
+		channels: 2,
+	},
+	{
+		kind: "video",
+		mimeType: "video/VP8",
+		clockRate: 90000,
+		parameters: {
+			"x-google-start-bitrate": 1000,
+		},
+	},
 ]
+
+const listenInfo = {
+	listenInfos: [
+		{
+			protocol: "udp",
+			ip,
+		},
+		{
+			protocol: "tcp",
+			ip,
+		},
+	],
+}
 
 class Mediasoup {
 	constructor() {
@@ -51,4 +65,4 @@ class Mediasoup {
 	}
 }
 
-module.exports = { webRtcTransport_options, Mediasoup, mediaCodecs }
+module.exports = { webRtcTransport_options, Mediasoup, mediaCodecs, listenInfo }

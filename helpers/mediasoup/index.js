@@ -21,9 +21,17 @@ const createWorker = async () => {
 	return worker
 }
 
-const createWebRtcTransport = async (router) => {
+const createWebRtcTransport = async ({ router, serverParameter }) => {
 	try {
-		let transport = await router.createWebRtcTransport(webRtcTransport_options)
+		let configuration = {
+			webRtcServer: serverParameter.webRtcServer,
+			enableUdp: true,
+			enableTcp: true,
+			preferUdp: true,
+		}
+		// let transport = await router.createWebRtcTransport(webRtcTransport_options)
+		// console.log("- Server Parameter : ", serverParameter.webRtcServer)
+		let transport = await router.createWebRtcTransport(configuration)
 
 		transport.on("dtlsstatechange", (dtlsState) => {
 			if (dtlsState === "closed") {

@@ -2,15 +2,15 @@ const express = require("express")
 const cors = require("cors")
 const router = require("./routes/index.js")
 const app = express()
-const port = 3001
-// const port = 80
+// const port = 3001
+const port = 80
 const http = require("http")
 const path = require("path")
 const https = require("httpolyglot")
 const { Server } = require("socket.io")
 const mediasoup = require("mediasoup")
 const { options } = require("./certif")
-const { webRtcTransport_options, mediaCodecs } = require("./config/mediasoup/config")
+const { webRtcTransport_options, mediaCodecs, listenInfo } = require("./config/mediasoup/config")
 const { Server_Parameter } = require("./helpers/server_parameters.js")
 const { Room } = require("./helpers/rooms.js")
 const { Users } = require("./helpers/users.js")
@@ -25,30 +25,33 @@ app.use(express.json())
 app.use(express.static("public"))
 app.use(express.static(path.join(__dirname, "public")))
 
-const httpsServer = https.createServer(options, app)
-httpsServer.listen(port, () => {
+// const httpsServer = https.createServer(options, app)
+// httpsServer.listen(port, () => {
+// 	console.log("App On : " + port)
+// })
+
+// const io = new Server(httpsServer)
+
+const httpServer = http.createServer(app)
+httpServer.listen(port, () => {
 	console.log("App On : " + port)
 })
+
+const io = new Server(httpServer)
+
 let serverParameter = new Server_Parameter()
 let mediasoupParameter = new Mediasoup_Parameter()
 
 const init = async () => {
 	try {
 		serverParameter.worker = await createWorker()
+		serverParameter.webRtcServer = await serverParameter.worker.createWebRtcServer(listenInfo)
 	} catch (error) {
-		console.log("Failed Initialization")
+		console.log("Failed Initialization : ", error)
 	}
 }
 
 init()
-const io = new Server(httpsServer)
-
-// const httpServer = http.createServer(app)
-// httpServer.listen(port, () => {
-// 	console.log("App On : " + port)
-// })
-
-// const io = new Server(httpServer)
 
 io.on("connection", async (socket) => {
 	socket.emit("connection-success", {
@@ -85,6 +88,8 @@ io.on("connection", async (socket) => {
 
 		mediasoupParameter.transports = mediasoupParameter.transports.filter((data) => data.socketId !== socket.id)
 
+		console.log("- Rec Transport : ", mediasoupParameter.transports.length)
+
 		serverParameter.allRooms[serverParameter.allUsers[socket.id].roomName].participants = serverParameter.allRooms[
 			serverParameter.allUsers[socket.id].roomName
 		].participants.filter((user) => user.socketId !== socket.id)
@@ -118,7 +123,7 @@ io.on("connection", async (socket) => {
 	socket.on("create-webrtc-transport", async ({ consumer, roomName }, callback) => {
 		try {
 			let router = serverParameter.allRooms[roomName].router
-			const transport = await createWebRtcTransport(router)
+			const transport = await createWebRtcTransport({ router, serverParameter })
 			let username
 			const editParticipants = serverParameter.allRooms[roomName].participants.map((data) => {
 				if (data.socketId == socket.id) {
@@ -247,8 +252,8 @@ io.on("connection", async (socket) => {
 				consumer.on("producerclose", () => {
 					socket.emit("producer-closed", { remoteProducerId, socketId: producerSocket })
 
-					consumerTransport.close([])
-					mediasoupParameter.transports = mediasoupParameter.transports.filter((transportData) => transportData.transport.id !== consumerTransport.id)
+					// consumerTransport.close([])
+					// mediasoupParameter.transports = mediasoupParameter.transports.filter((transportData) => transportData.transport.id !== consumerTransport.id)
 					consumer.close()
 					mediasoupParameter.consumers = mediasoupParameter.consumers.filter((consumerData) => consumerData.consumer.id !== consumer.id)
 				})
